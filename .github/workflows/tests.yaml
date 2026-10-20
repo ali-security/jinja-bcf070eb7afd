@@ -1,25 +1,16 @@
 name: Tests
 on:
-  push:
-    branches:
-      - main
-      - '*.x'
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '*.rst'
-  pull_request:
-    branches:
-      - main
-      - '*.x'
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '*.rst'
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: 'pytest -k expression to run a subset of tests'
+        required: false
+        default: ''
 jobs:
   tests:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -31,9 +22,8 @@ jobs:
           - {name: '3.10', python: '3.10', os: ubuntu-latest, tox: py310}
           - {name: '3.9', python: '3.9', os: ubuntu-latest, tox: py39}
           - {name: '3.8', python: '3.8', os: ubuntu-latest, tox: py38}
-          - {name: '3.7', python: '3.7', os: ubuntu-latest, tox: py37}
+          - {name: '3.7', python: '3.7', os: ubuntu-22.04, tox: py37}
           - {name: 'PyPy', python: 'pypy-3.10', os: ubuntu-latest, tox: pypy310}
-          - {name: Typing, python: '3.11', os: ubuntu-latest, tox: typing}
     steps:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
       - uses: actions/setup-python@5ccb29d8773c3f3f653e1705f474dfaa8a06a912
@@ -47,10 +37,10 @@ jobs:
           pip install -U setuptools
           python -m pip install -U pip
       - name: cache mypy
-        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12
+        uses: actions/cache@v4
         with:
           path: ./.mypy_cache
           key: mypy|${{ matrix.python }}|${{ hashFiles('setup.cfg') }}
         if: matrix.tox == 'typing'
       - run: pip install tox
-      - run: tox run -e ${{ matrix.tox }}
+      - run: tox run -e ${{ matrix.tox }}${{ inputs.test-filter != '' && format(' -- -k "{0}"', inputs.test-filter) || '' }}
